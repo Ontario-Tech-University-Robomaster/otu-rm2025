@@ -5,7 +5,9 @@
 #ifndef DR16_H
 #define DR16_H
 
+#include <vector>
 #include "typedefs.h"
+#include "devices.h"
 
 struct __attribute__((packed)) DR16 {
   uint16_t c0: 11; // 11
@@ -38,7 +40,7 @@ inline DR16 &parseDR16(uint8_t data[18]) {
   return (reinterpret_cast<DR16 &>(data[0]));
 }
 
-vector<uint8_t> readDR16() {
+std::vector<uint8_t> readDR16() {
   std::vector<uint8_t> rxData(18, 0);
   if (!SerialInput.available()) return rxData;
   // for (int i = 0; i < 9; ++i) SerialInput.read();  // deal with offset

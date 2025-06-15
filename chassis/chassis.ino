@@ -4,11 +4,14 @@
 #include "motor_info.h"
 #include "CanConf.h"
 #include "dr16.h"
+#include "devices.h"
 // #include <PID_v1_bc.h>
 
 using namespace std;
 
 CAN_message_t motor_feedback;
+
+int16_t turret_zero;
 
 bool dataValid = false;
 
@@ -72,6 +75,12 @@ void setup() {
   pinMode(PE11, OUTPUT);  //LED R
   pinMode(PF14, OUTPUT);  //LED G
   Serial.begin(115200);
+
+  delay(50);
+  for (int i = 0; i < 50; ++i) { // to get the zero, keep polling for it a few times
+    turret_zero = pan.read_angle();
+    delay(1);
+  }
 }
 
 bool pp = true;
@@ -114,7 +123,7 @@ void loop() {
   dr16 = drop_controller(dr16);
 
 
-  const int lb = -5000, ub = 5000;
+  const int lb = -5000, ub = 5000; // lower and upper bounds
 
   int rightX = map(dr16.c0, 384, 1684, lb, ub);  // - 1000; Yaw
   int rightY = map(dr16.c1, 384, 1684, lb, ub);  // Not currently used for driving
@@ -138,14 +147,7 @@ void loop() {
   int m1_s = skillIssue * (leftY + leftX + rightX);
   int m2_s = skillIssue * (leftY - leftX + rightX);
   int m3_s = skillIssue *(-leftY - leftX + rightX);
-  int m4_s = skillIssue * (-leftY + leftX + rightX);const int mapLimit = 10;
-
-
-  // int t_spin = rightX && !body_pan;
-
-  if (dr16.s1 == 0) body_pan = true;
-  else body_pan = false;
-
+  int m4_s = skillIssue * (-leftY + leftX + rightX);
 
   drivetrainValues.m1 = m1.update(m1_s - cm1);
   drivetrainValues.m2 = m2.update(m2_s - cm2);
@@ -153,18 +155,8 @@ void loop() {
   drivetrainValues.m4 = m4.update(m4_s - cm4);
 
 
-  Serial.print("time:");
-  Serial.print(millis());
-  Serial.print(",output:");
-  Serial.print(sp1);
-  Serial.print(",c3:");
-  Serial.print(dr16.c3);
-  Serial.print(",speed:");
-  Serial.println(motor1.read_speed());
-
-
   auto dt = setDrivetrain(drivetrainValues);
-  auto dt = setTurret({t_spin, t_spin, t_spin, t_spin});
+  // auto dt = setTurret({t_spin, t_spin, t_spin, t_spin});
 
   Can1.write(dt);
 
