@@ -7,6 +7,9 @@
 #include "devices.h"
 // #include <PID_v1_bc.h>
 
+#define PI 3.141592
+#define SPIN_CORRECTION 1  // cause I don't wanna actually calculate spin rate
+
 using namespace std;
 
 CAN_message_t motor_feedback;
@@ -57,15 +60,7 @@ CAN_message_t setTurret(struct motor_data motorValues) {
   return drivetrain;
 }
 
-double input = 0;
-double output = 0;
-double setpoint = 1000.0;  // Define setpoint
-// PID myPID(&input, &output, &setpoint, 1, 5, 70, 1);
-// PID myPID(&input, &output, &setpoint, 0, 0, 0, 0);
-
 void setup() {
-  // myPID.SetMode(P_ON_M);
-  // myPID.SetOutputLimits(-1000, 1000);
 
   SerialInput.begin(100000, SERIAL_8E1);  //100Kbps
 
@@ -77,7 +72,7 @@ void setup() {
   Serial.begin(115200);
 
   delay(50);
-  for (int i = 0; i < 50; ++i) { // to get the zero, keep polling for it a few times
+  for (int i = 0; i < 50; ++i) {  // to get the zero, keep polling for it a few times
     turret_zero = pan.read_angle();
     delay(1);
   }
@@ -117,13 +112,19 @@ DR16 drop_controller(DR16 in) {
   return in;
 }
 
+float to_radians(uint16_t num, uint16_t ub) {
+  float frac = ((float) num) / ub;
+  return frac * 2 * PI;
+}
+
 void loop() {
   std::vector<uint8_t> dr16_raw = readDR16();
   DR16 dr16 = parseDR16(dr16_raw.data());
   dr16 = drop_controller(dr16);
 
+  float current_angle = to_radians(pan.read_angle() - turret_zero, GM6020_MAX_ANGLE); // adjust for correction and turn to radian
 
-  const int lb = -5000, ub = 5000; // lower and upper bounds
+  const int lb = -5000, ub = 5000;  // lower and upper bounds
 
   int rightX = map(dr16.c0, 384, 1684, lb, ub);  // - 1000; Yaw
   int rightY = map(dr16.c1, 384, 1684, lb, ub);  // Not currently used for driving
@@ -131,10 +132,10 @@ void loop() {
   int leftY = map(dr16.c3, 384, 1684, lb, ub);   // + testY;  // + 1000;
 
 
-  if (abs(leftY) == 1) leftY = 0;
-  if (abs(leftX) == 1) leftX = 0;
-  if (abs(rightY) == 1) rightY = 0;
-  if (abs(rightX) == 85) rightX = 0;
+  if (abs(leftY) <= 1) leftY = 0;
+  if (abs(leftX) <= 1) leftX = 0;
+  if (abs(rightY) <= 1) rightY = 0;
+  if (abs(rightX) <= 85) rightX = 0;
 
   auto cm1 = motor1.read_speed();
   auto cm2 = motor2.read_speed();
@@ -144,10 +145,16 @@ void loop() {
   struct motor_data drivetrainValues;
   struct motor_data turretValues;
 
-  int m1_s = skillIssue * (leftY + leftX + rightX);
-  int m2_s = skillIssue * (leftY - leftX + rightX);
-  int m3_s = skillIssue *(-leftY - leftX + rightX);
-  int m4_s = skillIssue * (-leftY + leftX + rightX);
+  int beyblade = 0;
+  if (dr16.s1 == 0) {
+    beyblade = 100;
+  }
+
+  int m1_s = skillIssue * (leftY + leftX + rightX) + beyblade;
+  int m2_s = skillIssue * (leftY - leftX + rightX) + beyblade;
+  int m3_s = skillIssue * (-leftY - leftX + rightX) + beyblade;
+  int m4_s = skillIssue * (-leftY + leftX + rightX) + beyblade;
+  int pan_s = beyblade * SPIN_CORRECTION;
 
   drivetrainValues.m1 = m1.update(m1_s - cm1);
   drivetrainValues.m2 = m2.update(m2_s - cm2);
@@ -155,10 +162,11 @@ void loop() {
   drivetrainValues.m4 = m4.update(m4_s - cm4);
 
 
-  auto dt = setDrivetrain(drivetrainValues);
-  // auto dt = setTurret({t_spin, t_spin, t_spin, t_spin});
+  auto chassis = setDrivetrain(drivetrainValues);
+  auto turret_pan = setTurret({ pan_s, pan_s, pan_s, pan_s });
 
-  Can1.write(dt);
+  Can1.write(chassis);
+  Can1.write(turret_pan);
 
 
   if (1) pp = !pp;

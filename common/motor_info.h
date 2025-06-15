@@ -9,7 +9,7 @@
 #include "CanConf.h"
 
 #define UPDATE_RATE 1 // ms
-
+#define GM6020_MAX_ANGLE 8191
 
 enum MOTOR_GROUP {
   M3508_C0 = 0x200,
@@ -28,7 +28,7 @@ enum MOTOR_TYPE {
 };
 
 struct motor_info_t {
-  int16_t angle = -1;
+  uint16_t angle = -1;
   int16_t speed = -1; // rpm
   int16_t torque = -1;
   uint8_t temp = -1;
@@ -59,7 +59,7 @@ public:
 
   /**
    * Reads the angle of the motor and returns it as an int
-   * @see [GM6020 manual](https://rm-static.djicdn.com/tem/17348/RM%20GM6020%20%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E%EF%BC%88%E8%8B%B1%EF%BC%8920231103.pdf)
+   * @see [GM6020 manual](https://rm-smotor_datatatic.djicdn.com/tem/17348/RM%20GM6020%20%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E%EF%BC%88%E8%8B%B1%EF%BC%8920231103.pdf)
    * @return Current angle of motor
    */
   int16_t read_angle();
