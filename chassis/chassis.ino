@@ -74,26 +74,21 @@ void setup() {
   Serial.begin(115200);
 }
 
-uint16_t prev_sp1 = 0;
-uint16_t prev_sp2 = 0;
-uint16_t prev_sp3 = 0;
-uint16_t prev_sp4 = 0;
 bool pp = true;
-// struct motor_data prevmotorValues{0,0,0,0};
-//const int offset = -1024;//ties the mapping so the data recieved means 0
+
 const double skillIssue = 0.01;
-const int mapLimit = 10;
 
 // less than or greater than
 inline bool ltgt(int lower, int val, int upper) {
   return (lower > val) || (val > upper);
 }
 
-uint16_t c0_prev = 1024;
-uint16_t c1_prev = 1024;
-uint16_t c2_prev = 1024;
-uint16_t c3_prev = 1024;
 DR16 drop_controller(DR16 in) {
+  // compensate for dropouts to stop robot from jittering
+  static uint16_t c0_prev = 1024;
+  static uint16_t c1_prev = 1024;
+  static uint16_t c2_prev = 1024;
+  static uint16_t c3_prev = 1024;
   if (ltgt(364, in.c0, 1684)
       || ltgt(364, in.c1, 1684)
       || ltgt(364, in.c2, 1684)
@@ -140,10 +135,11 @@ void loop() {
   struct motor_data drivetrainValues;
   struct motor_data turretValues;
 
-  int m1_s = leftY + leftX + rightX;
-  int m2_s = leftY - leftX + rightX;
-  int m3_s = -leftY - leftX + rightX;
-  int m4_s = -leftY + leftX + rightX;
+  int m1_s = skillIssue * (leftY + leftX + rightX);
+  int m2_s = skillIssue * (leftY - leftX + rightX);
+  int m3_s = skillIssue *(-leftY - leftX + rightX);
+  int m4_s = skillIssue * (-leftY + leftX + rightX);const int mapLimit = 10;
+
 
   // int t_spin = rightX && !body_pan;
 
