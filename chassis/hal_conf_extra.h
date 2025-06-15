@@ -1,1 +1,1 @@
-#define HAL_CAN_MODULE_ENABLED
+../common/hal_conf_extra.h
