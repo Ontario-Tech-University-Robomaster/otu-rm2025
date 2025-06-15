@@ -38,5 +38,15 @@ inline DR16 &parseDR16(uint8_t data[18]) {
   return (reinterpret_cast<DR16 &>(data[0]));
 }
 
+vector<uint8_t> readDR16() {
+  std::vector<uint8_t> rxData(18, 0);
+  if (!SerialInput.available()) return rxData;
+  // for (int i = 0; i < 9; ++i) SerialInput.read();  // deal with offset
+  for (int index = 0; index < 18; index++) {
+    rxData[index] = SerialInput.read();
+  }
+
+  return rxData;
+}
 
 #endif //DR16_H

@@ -7,51 +7,10 @@
 // #include <PID_v1_bc.h>
 
 using namespace std;
-motor motor1(M3508, 0);
-motor motor2(M3508, 1);
-motor motor3(M3508, 2);
-motor motor4(M3508, 3);
-
-// PID m1(39.36, 1226.72, 0);
-// PID m1(3.936, 122.672, 0);
-// PID m1(76, 6400, 0.02);
-// PID m1(9, 50, 0.005);
-PID m1(1, 0, 10);
-PID m2(1, 0, 10);
-PID m3(1, 0, 10);
-PID m4(1, 0, 10);
-
-
-CAN_message_t turret = {
-  .id = 0x1FE,  // can identifier
-  .len = 8,     // length of data
-  .buf = { 0 }  // data
-};
-
-CAN_message_t motor_msg{
-  .id = 0x204  // can identifier
-};
 
 CAN_message_t motor_feedback;
 
 bool dataValid = false;
-
-//oridigl is PD_0 and PD_1
-STM32_CAN Can1(PD_0, PD_1);  //by PinName. Finds matching peripheral automatically
-
-//                          RX   TX
-HardwareSerial SerialInput(PB7, PB6);
-
-vector<uint8_t> readDR16() {
-  std::vector<uint8_t> rxData(18, 0);
-  if (!SerialInput.available()) return rxData;
-  // for (int i = 0; i < 9; ++i) SerialInput.read();  // deal with offset
-  for (int index = 0; index < 18; index++) {
-    rxData[index] = SerialInput.read();
-  }
-
-  return rxData;
-}
 
 struct motor_data {
   int m1, m2, m3, m4;
@@ -154,8 +113,6 @@ DR16 drop_controller(DR16 in) {
   return in;
 }
 
-bool body_pan = false;
-
 void loop() {
   std::vector<uint8_t> dr16_raw = readDR16();
   DR16 dr16 = parseDR16(dr16_raw.data());
@@ -183,40 +140,25 @@ void loop() {
   struct motor_data drivetrainValues;
   struct motor_data turretValues;
 
-  setpoint = leftY;
+  int m1_s = leftY + leftX + rightX;
+  int m2_s = leftY - leftX + rightX;
+  int m3_s = -leftY - leftX + rightX;
+  int m4_s = -leftY + leftX + rightX;
 
-  int m1_s = leftY + leftX + (rightX && body_pan);
-  int m2_s = leftY - leftX + (rightX && body_pan);
-  int m3_s = -leftY - leftX + (rightX && body_pan);
-  int m4_s = -leftY + leftX + (rightX && body_pan);
-
-  int t_spin = rightX && !body_pan;
-
+  // int t_spin = rightX && !body_pan;
 
   if (dr16.s1 == 0) body_pan = true;
   else body_pan = false;
 
-  int err1 = m1_s - cm1;
-  int err2 = m2_s - cm2;
-  int err3 = m3_s - cm3;
-  int err4 = m4_s - cm4;
 
-  int16_t sp1 = m1.update(err1);
-  int16_t sp2 = m2.update(err2);
-  int16_t sp3 = m3.update(err3);
-  int16_t sp4 = m4.update(err4);
-
-
-  drivetrainValues.m1 = sp1;
-  drivetrainValues.m2 = sp2;
-  drivetrainValues.m3 = sp3;
-  drivetrainValues.m4 = sp4;
+  drivetrainValues.m1 = m1.update(m1_s - cm1);
+  drivetrainValues.m2 = m2.update(m2_s - cm2);
+  drivetrainValues.m3 = m3.update(m3_s - cm3);
+  drivetrainValues.m4 = m4.update(m4_s - cm4);
 
 
   Serial.print("time:");
   Serial.print(millis());
-  Serial.print(",setpoint:");
-  Serial.print(setpoint);
   Serial.print(",output:");
   Serial.print(sp1);
   Serial.print(",c3:");
