@@ -76,7 +76,7 @@ void setup() {
 
 bool pp = true;
 
-const double skillIssue = 0.01;
+const double skillIssue = 0.30;
 
 // less than or greater than
 inline bool ltgt(int lower, int val, int upper) {
