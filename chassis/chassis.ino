@@ -44,7 +44,7 @@ CAN_message_t setDrivetrain(struct motor_data motorValues) {
 
 CAN_message_t setTurret(struct motor_data motorValues) {
   CAN_message_t drivetrain = {
-    .id = 0x1FE,  // can identifier
+    .id = 0x1FF,  // can identifier
     .len = 8,     // length of data
     .buf = {
       motorValues.m1 >> 8,
@@ -70,17 +70,12 @@ void setup() {
   pinMode(PE11, OUTPUT);  //LED R
   pinMode(PF14, OUTPUT);  //LED G
   Serial.begin(115200);
-
-  delay(50);
-  for (int i = 0; i < 50; ++i) {  // to get the zero, keep polling for it a few times
-    turret_zero = pan.read_angle();
-    delay(1);
-  }
 }
 
 bool pp = true;
 
-const double skillIssue = 0.30;
+// const double skillIssue = 0.30;
+const double skillIssue = 1;
 
 // less than or greater than
 inline bool ltgt(int lower, int val, int upper) {
@@ -97,7 +92,7 @@ DR16 drop_controller(DR16 in) {
       || ltgt(364, in.c1, 1684)
       || ltgt(364, in.c2, 1684)
       || ltgt(364, in.c3, 1684)) {
-    Serial.println("killed");
+    // Serial.println("killed");
 
     in.c0 = c0_prev;
     in.c1 = c1_prev;
@@ -113,16 +108,35 @@ DR16 drop_controller(DR16 in) {
 }
 
 float to_radians(uint16_t num, uint16_t ub) {
-  float frac = ((float) num) / ub;
+  float frac = ((float)num) / ub;
   return frac * 2 * PI;
 }
+
+struct vector2 {
+  float x, y;
+};
+
+// Turns global orthogonal to local orthogonal
+struct vector2 rotate_by(struct vector2 in, float angle) {
+  float c = cos(angle);
+  float s = sin(angle);
+
+  return {
+    (in.x * c - in.y * s),
+    (in.x * s + in.y * c)
+  };
+}
+
+int beyblade = 0;
+int last1 = 3;
+int last2 = 3;
 
 void loop() {
   std::vector<uint8_t> dr16_raw = readDR16();
   DR16 dr16 = parseDR16(dr16_raw.data());
   dr16 = drop_controller(dr16);
 
-  float current_angle = to_radians(pan.read_angle() - turret_zero, GM6020_MAX_ANGLE); // adjust for correction and turn to radian
+  float current_angle = to_radians(pan.read_angle() - turret_zero, GM6020_MAX_ANGLE);  // adjust for correction and turn to radian
 
   const int lb = -5000, ub = 5000;  // lower and upper bounds
 
@@ -130,7 +144,6 @@ void loop() {
   int rightY = map(dr16.c1, 384, 1684, lb, ub);  // Not currently used for driving
   int leftX = map(dr16.c2, 384, 1684, lb, ub);   // + testX;// - 1000;
   int leftY = map(dr16.c3, 384, 1684, lb, ub);   // + testY;  // + 1000;
-
 
   if (abs(leftY) <= 1) leftY = 0;
   if (abs(leftX) <= 1) leftX = 0;
@@ -143,25 +156,44 @@ void loop() {
   auto cm4 = motor4.read_speed();
 
   struct motor_data drivetrainValues;
-  struct motor_data turretValues;
 
-  int beyblade = 0;
-  if (dr16.s1 == 0) {
-    beyblade = 100;
+
+
+  if (last1 != last2) {
+    if (dr16.s2 == 3) beyblade = 0;
+    else if (dr16.s2 == 2) beyblade = 3000;
+    else if (dr16.s2 == 1) beyblade = -3000;
   }
+  last2 = last1;
+  last1 = dr16.s2;
 
-  int m1_s = skillIssue * (leftY + leftX + rightX) + beyblade;
-  int m2_s = skillIssue * (leftY - leftX + rightX) + beyblade;
-  int m3_s = skillIssue * (-leftY - leftX + rightX) + beyblade;
-  int m4_s = skillIssue * (-leftY + leftX + rightX) + beyblade;
-  int pan_s = beyblade * SPIN_CORRECTION;
+  struct vector2 global_dir = { leftX, leftY };
+  struct vector2 local_dir = rotate_by(global_dir, current_angle);
+
+  Serial.print("B:");
+  Serial.print(beyblade);
+  Serial.print(",GX:");
+  Serial.print(global_dir.x);
+  Serial.print(",GY:");
+  Serial.print(global_dir.y);
+  Serial.print(",LX:");
+  Serial.print(local_dir.x);
+  Serial.print(",LY:");
+  Serial.println(local_dir.y);
+
+  int m1_s = skillIssue * (local_dir.y + local_dir.x) + beyblade;
+  int m2_s = skillIssue * (local_dir.y - local_dir.x) + beyblade;
+  int m3_s = skillIssue * (-local_dir.y - local_dir.x) + beyblade;
+  int m4_s = skillIssue * (-local_dir.y + local_dir.x) + beyblade;
+  int pan_s = beyblade * SPIN_CORRECTION - rightX;
+  // Serial.println(pan.read_angle());
 
   drivetrainValues.m1 = m1.update(m1_s - cm1);
   drivetrainValues.m2 = m2.update(m2_s - cm2);
   drivetrainValues.m3 = m3.update(m3_s - cm3);
   drivetrainValues.m4 = m4.update(m4_s - cm4);
 
-
+  // Serial.println(drivetrainValues.m1);
   auto chassis = setDrivetrain(drivetrainValues);
   auto turret_pan = setTurret({ pan_s, pan_s, pan_s, pan_s });
 

@@ -7,7 +7,7 @@ motor motor2(M3508, 1);
 motor motor3(M3508, 2);
 motor motor4(M3508, 3);
 
-motor pan(GM6020, 0);
+motor pan(GM6020, 1);
 
 PID m1(1, 0, 10);
 PID m2(1, 0, 10);
