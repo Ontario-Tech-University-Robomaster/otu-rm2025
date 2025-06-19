@@ -5,10 +5,9 @@
 #include "CanConf.h"
 #include "dr16.h"
 #include "devices.h"
-// #include <PID_v1_bc.h>
 
 #define PI 3.141592
-#define SPIN_CORRECTION 1  // cause I don't wanna actually calculate spin rate
+#define SPIN_CORRECTION -1  // cause I don't wanna actually calculate spin rate
 
 using namespace std;
 
@@ -24,7 +23,6 @@ struct motor_data {
 
 
 CAN_message_t setDrivetrain(struct motor_data motorValues) {
-  motorValues.m1 = -motorValues.m1;
   CAN_message_t drivetrain = {
     .id = 0x200,  // can identifier
     .len = 8,     // length of data
@@ -65,17 +63,17 @@ void setup() {
   SerialInput.begin(100000, SERIAL_8E1);  //100Kbps
 
   Can1.setBaudRate(1000000);  //1M
-  Can1.begin(false);
+  Can1.begin(false); // automatic retransmission
 
   pinMode(PE11, OUTPUT);  //LED R
   pinMode(PF14, OUTPUT);  //LED G
   Serial.begin(115200);
+  digitalWrite(PE11, LOW);   // turn the LED on (HIGH is the voltage level)
+  digitalWrite(PF14, LOW);  // turn the LED on (HIGH is the voltage level)
 }
 
-bool pp = true;
-
-// const double skillIssue = 0.30;
-const double skillIssue = 1;
+const double skillIssue = 0.30;
+// const double skillIssue = 1;
 
 // less than or greater than
 inline bool ltgt(int lower, int val, int upper) {
@@ -161,25 +159,14 @@ void loop() {
 
   if (last1 != last2) {
     if (dr16.s2 == 3) beyblade = 0;
-    else if (dr16.s2 == 2) beyblade = 3000;
-    else if (dr16.s2 == 1) beyblade = -3000;
+    else if (dr16.s2 == 2) beyblade = 2000;
+    else if (dr16.s2 == 1) beyblade = -2000;
   }
   last2 = last1;
   last1 = dr16.s2;
 
   struct vector2 global_dir = { leftX, leftY };
   struct vector2 local_dir = rotate_by(global_dir, current_angle);
-
-  Serial.print("B:");
-  Serial.print(beyblade);
-  Serial.print(",GX:");
-  Serial.print(global_dir.x);
-  Serial.print(",GY:");
-  Serial.print(global_dir.y);
-  Serial.print(",LX:");
-  Serial.print(local_dir.x);
-  Serial.print(",LY:");
-  Serial.println(local_dir.y);
 
   int m1_s = skillIssue * (local_dir.y + local_dir.x) + beyblade;
   int m2_s = skillIssue * (local_dir.y - local_dir.x) + beyblade;
@@ -197,12 +184,18 @@ void loop() {
   auto chassis = setDrivetrain(drivetrainValues);
   auto turret_pan = setTurret({ pan_s, pan_s, pan_s, pan_s });
 
-  Can1.write(chassis);
-  Can1.write(turret_pan);
+  if (!Can1.write(chassis) || !Can1.write(turret_pan)) {
+    digitalWrite(PE11, HIGH);
+    Serial.println("COULD NOT WRITE CHASSIS");
+    Can1.end();
+    Can1.begin(false);
+  } else {
+    Serial.println("CHASSIS");
+  }
 
 
-  if (1) pp = !pp;
-  digitalWrite(PE11, pp);   // turn the LED on (HIGH is the voltage level)
-  digitalWrite(PF14, !pp);  // turn the LED on (HIGH is the voltage level)
+  // if (1) pp = !pp;
+  // digitalWrite(PE11, pp);   // turn the LED on (HIGH is the voltage level)
+  // digitalWrite(PF14, !pp);  // turn the LED on (HIGH is the voltage level)
   delay(10);
 }
