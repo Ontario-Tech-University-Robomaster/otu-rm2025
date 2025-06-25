@@ -18,9 +18,9 @@ PID mtilt(1, 0, 10);//just for the 6020 tilt motor / controlled by Velocity
 STM32_CAN Can1(PD_0, PD_1);  //by PinName. Finds matching peripheral automatically
 
 //                          RX   TX
-HardwareSerial SerialInput(PB7, PB6);
+HardwareSerial SerialInput(PG9, PG14);
 
-//Rx and Tx pins from chassis to turret
-HardwareSerial ChassisInput(PG9, PG14);//UART port
+// //Rx and Tx pins from Turret to Chassis
+// HardwareSerial ChassisInput(PG9, PG14);//UART port
 
 #endif // DEVICES_H

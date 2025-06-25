@@ -64,6 +64,8 @@ void setup() {
 
   SerialInput.begin(100000, SERIAL_8E1);  //100Kbps
 
+  ChassisToTurret.begin(100000, SERIAL_8E1);  //100Kbps
+
   Can1.setBaudRate(1000000);  //1M
   Can1.begin(false); // automatic retransmission
 

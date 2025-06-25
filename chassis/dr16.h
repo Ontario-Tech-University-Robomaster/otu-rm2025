@@ -45,7 +45,9 @@ std::vector<uint8_t> readDR16() {
   if (!SerialInput.available()) return rxData;
   // for (int i = 0; i < 9; ++i) SerialInput.read();  // deal with offset
   for (int index = 0; index < 18; index++) {
-    rxData[index] = SerialInput.read();
+    uint8_t tmp = SerialInput.read();//send a copy of dr16 data throught the USART port to turret board
+    ChassisToTurret.write(tmp);
+    rxData[index] = tmp;
   }
 
   return rxData;

@@ -13,7 +13,7 @@ using namespace std;
 
 CAN_message_t motor_feedback;
 
-int16_t turret_zero;
+int16_t tilt_zero;
 
 bool dataValid = false;
 
@@ -60,8 +60,6 @@ CAN_message_t setGimbal(struct motor_data motorValues) {
 void setup() {
 
   SerialInput.begin(100000, SERIAL_8E1);  //100Kbps
-
-  ChassisInput.begin(100000, SERIAL_8E1);  //100Kbps
   
   Can1.setBaudRate(1000000);  //1M
   Can1.begin(false);          // automatic retransmission
@@ -137,6 +135,8 @@ void loop() {
   std::vector<uint8_t> dr16_raw = readDR16();
   DR16 dr16 = parseDR16(dr16_raw.data());
   dr16 = drop_controller(dr16);
+  
+  // float current_angle = to_radians(tilt.read_angle() - tilt_zero, GM6020_MAX_ANGLE);  // adjust for correction and turn to radian
 
   const int lb = -5000, ub = 5000;  // lower and upper bounds
 
@@ -165,7 +165,7 @@ int WHOATHEREBESSY = 0.1;//slow down the tilt motor so not crash
   int m4_s = agitator;   //Agitator
   int tilt_s = rightY * WHOATHEREBESSY;   //Tilt motor
 
-  tilt_s = mtilt.update(tilt_s - cm1);
+  // tilt_s = mtilt.update(tilt_s - cm1);
 
   Serial.print("Agitator Value: ");
   Serial.println(agitator);

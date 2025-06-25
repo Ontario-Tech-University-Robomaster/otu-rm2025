@@ -19,6 +19,8 @@ PID m4(1, 0, 10);
 STM32_CAN Can1(PD_0, PD_1);  //by PinName. Finds matching peripheral automatically
 
 //                          RX   TX
-HardwareSerial SerialInput(PG9, PG14);
+HardwareSerial SerialInput(PB7, PB6);
+
+HardwareSerial ChassisToTurret(PG9, PG14);//UART port from chassis to turret
 
 #endif // DEVICES_H

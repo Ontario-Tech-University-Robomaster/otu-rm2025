@@ -44,10 +44,7 @@ std::vector<uint8_t> readDR16() {
   if (!SerialInput.available()) return rxData;  // swap to ChassisInput.availible?
   // for (int i = 0; i < 9; ++i) SerialInput.read();  // deal with offset
   for (int index = 0; index < 18; index++) {
-    byte tmp = SerialInput.read();//copy with chasosis input
-    ChassisInput.write(tmp);
-    rxData[index] = tmp;
-    // rxData[index] = SerialInput.read();
+    rxData[index] = SerialInput.read();
   }
 
   return rxData;
