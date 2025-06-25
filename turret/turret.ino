@@ -155,6 +155,7 @@ DR16 drop_controller(DR16 in) {
 }
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 bool body_pan = false;
 
 void loop() {
@@ -165,6 +166,8 @@ void loop() {
 
   const int lb = -5000, ub = 5000;
 =======
+=======
+>>>>>>> Stashed changes
 int drop_usart(int in) {
  if(in == 0x1A1A) return 1;
  if(in == 0x2B2B) return 2; 
@@ -232,6 +235,9 @@ void loop() {
   }
   last2 = last1;
   last1 = usart;
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
   int rightX = map(dr16.c0, 384, 1684, lb, ub);  // - 1000; Yaw
@@ -302,6 +308,7 @@ void loop() {
   Serial.println(motor1.read_speed());
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
   auto dt = setDrivetrain(drivetrainValues);
   auto dt = setTurret({t_spin, t_spin, t_spin, t_spin});
@@ -312,6 +319,14 @@ void loop() {
   auto turret_fire = setTurret({ m1_s, m2_s, m4_s, m4_s });
   // auto turret_tilt = setGimbal({ tilt_s, tilt_s, tilt_s, tilt_s }); set mnual control
 
+=======
+  // Serial.println("Tilt Motor Angle: ");
+  // Serial.println(tilt.read_angle());//find 0 angle for TILT and PAN motor
+  
+  auto turret_fire = setTurret({ m1_s, m2_s, m4_s, m4_s });
+  // auto turret_tilt = setGimbal({ tilt_s, tilt_s, tilt_s, tilt_s }); set mnual control
+
+>>>>>>> Stashed changes
   if (!Can1.write(turret_fire)) {
     digitalWrite(PE11, HIGH);
     Serial.println("COULD NOT WRITE TURRET");

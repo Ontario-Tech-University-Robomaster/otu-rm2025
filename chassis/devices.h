@@ -21,7 +21,10 @@ STM32_CAN Can1(PD_0, PD_1);  //by PinName. Finds matching peripheral automatical
 HardwareSerial SerialInput(PB7, PB6);
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
 // HardwareSerial ChassisToTurret(PG9, PG14);//UART port from chassis to turret
 
 >>>>>>> Stashed changes

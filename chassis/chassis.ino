@@ -63,7 +63,10 @@ void setup() {
   SerialInput.begin(100000, SERIAL_8E1);  //100Kbps
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
   // ChassisToTurret.begin(100000, SERIAL_8E1);  //100Kbps
 
 >>>>>>> Stashed changes
@@ -165,8 +168,13 @@ void loop() {
   if (last1 != last2) {
     if (dr16.s2 == 3) beyblade = 0;
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     else if (dr16.s2 == 2) beyblade = 2000;
     else if (dr16.s2 == 1) beyblade = -2000;
+=======
+    else if (dr16.s2 == 2) beyblade = 10000;//max is 468, assume cause of weight is 400
+    else if (dr16.s2 == 1) beyblade = -10000;
+>>>>>>> Stashed changes
 =======
     else if (dr16.s2 == 2) beyblade = 10000;//max is 468, assume cause of weight is 400
     else if (dr16.s2 == 1) beyblade = -10000;
