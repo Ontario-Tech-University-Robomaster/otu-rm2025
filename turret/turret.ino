@@ -251,6 +251,9 @@ void loop() {
   int m2_s = 0x4000;  //R Flywheel
   int m4_s = agitator;   //Agitator
   // int tilt_s = rightY * WHOATHEREBESSY;   //Tilt motor
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
   if (abs(leftY) == 1) leftY = 0;
