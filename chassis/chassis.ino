@@ -6,6 +6,8 @@
 #include "dr16.h"
 #include "devices.h"
 
+// #include <AutoTunePID.h>
+
 #define PI 3.141592
 #define SPIN_CORRECTION -1  // cause I don't wanna actually calculate spin rate
 
@@ -41,7 +43,7 @@ CAN_message_t setDrivetrain(struct motor_data motorValues) {
 }
 
 CAN_message_t setTurret(struct motor_data motorValues) {
-  CAN_message_t drivetrain = {
+  CAN_message_t turret = {
     .id = 0x1FF,  // can identifier
     .len = 8,     // length of data
     .buf = {
@@ -55,7 +57,7 @@ CAN_message_t setTurret(struct motor_data motorValues) {
       motorValues.m4,
     }  // data
   };
-  return drivetrain;
+  return turret;
 }
 
 void setup() {
@@ -65,15 +67,18 @@ void setup() {
   Can1.setBaudRate(1000000);  //1M
   Can1.begin(false); // automatic retransmission
 
-  pinMode(PE11, OUTPUT);  //LED R
-  pinMode(PF14, OUTPUT);  //LED G
+  // pinMode(PE11, OUTPUT);  //LED R
+  // pinMode(PF14, OUTPUT);  //LED G
   Serial.begin(115200);
-  digitalWrite(PE11, LOW);   // turn the LED on (HIGH is the voltage level)
-  digitalWrite(PF14, LOW);  // turn the LED on (HIGH is the voltage level)
+  // digitalWrite(PE11, LOW);   // turn the LED on (HIGH is the voltage level)
+  // digitalWrite(PF14, LOW);  // turn the LED on (HIGH is the voltage level)
 }
 
-const double skillIssue = 0.30;
-// const double skillIssue = 1;
+// const double skillIssue = 0.30;// Kit and Cassi
+// const double skillIssue = 0.10;// Sam
+// const double skillIssue = 0.70;// Daimen, Anthony, Dave
+// const double skillIssue = 0.50;//Testing 50% movement
+const double skillIssue = 1.00;//Testing Normal movement
 
 // less than or greater than
 inline bool ltgt(int lower, int val, int upper) {
@@ -159,8 +164,8 @@ void loop() {
 
   if (last1 != last2) {
     if (dr16.s2 == 3) beyblade = 0;
-    else if (dr16.s2 == 2) beyblade = 2000;
-    else if (dr16.s2 == 1) beyblade = -2000;
+    else if (dr16.s2 == 2) beyblade = 400;//max is 468, assume cause of weight is 400
+    else if (dr16.s2 == 1) beyblade = -400;
   }
   last2 = last1;
   last1 = dr16.s2;
@@ -180,7 +185,12 @@ void loop() {
   drivetrainValues.m3 = m3.update(m3_s - cm3);
   drivetrainValues.m4 = m4.update(m4_s - cm4);
 
-  // Serial.println(drivetrainValues.m1);
+  Serial.println("Drive Train Values: ");
+  Serial.println(drivetrainValues.m1);
+  Serial.println(drivetrainValues.m2);
+  Serial.println(drivetrainValues.m3);
+  Serial.println(drivetrainValues.m4);
+
   auto chassis = setDrivetrain(drivetrainValues);
   auto turret_pan = setTurret({ pan_s, pan_s, pan_s, pan_s });
 

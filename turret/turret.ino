@@ -4,82 +4,26 @@
 #include "motor_info.h"
 #include "CanConf.h"
 #include "dr16.h"
-// #include <PID_v1_bc.h>
+#include "devices.h"
+
+#define PI 3.141592
+#define SPIN_CORRECTION -1  // cause I don't wanna actually calculate spin rate
 
 using namespace std;
-motor motor1(M3508, 0);
-motor motor2(M3508, 1);
-motor motor3(M3508, 2);
-motor motor4(M3508, 3);
-
-// PID m1(39.36, 1226.72, 0);
-// PID m1(3.936, 122.672, 0);
-// PID m1(76, 6400, 0.02);
-// PID m1(9, 50, 0.005);
-PID m1(1, 0, 10);
-PID m2(1, 0, 10);
-PID m3(1, 0, 10);
-PID m4(1, 0, 10);
-
-
-CAN_message_t turret = {
-  .id = 0x1FE,  // can identifier
-  .len = 8,     // length of data
-  .buf = { 0 }  // data
-};
-
-CAN_message_t motor_msg{
-  .id = 0x204  // can identifier
-};
 
 CAN_message_t motor_feedback;
 
+int16_t turret_zero;
+
 bool dataValid = false;
-
-//oridigl is PD_0 and PD_1
-STM32_CAN Can1(PD_0, PD_1);  //by PinName. Finds matching peripheral automatically
-
-//                          RX   TX
-HardwareSerial SerialInput(PB7, PB6);
-
-vector<uint8_t> readDR16() {
-  std::vector<uint8_t> rxData(18, 0);
-  if (!SerialInput.available()) return rxData;
-  // for (int i = 0; i < 9; ++i) SerialInput.read();  // deal with offset
-  for (int index = 0; index < 18; index++) {
-    rxData[index] = SerialInput.read();
-  }
-
-  return rxData;
-}
 
 struct motor_data {
   int m1, m2, m3, m4;
 };
 
-
-CAN_message_t setDrivetrain(struct motor_data motorValues) {
-  motorValues.m1 = -motorValues.m1;
-  CAN_message_t drivetrain = {
-    .id = 0x200,  // can identifier
-    .len = 8,     // length of data
-    .buf = {
-      motorValues.m1 >> 8,
-      motorValues.m1,
-      motorValues.m2 >> 8,
-      motorValues.m2,
-      motorValues.m3 >> 8,
-      motorValues.m3,
-      motorValues.m4 >> 8,
-      motorValues.m4,
-    }  // data
-  };
-  return drivetrain;
-}
-
 CAN_message_t setTurret(struct motor_data motorValues) {
   CAN_message_t drivetrain = {
-    .id = 0x1FE,  // can identifier
+    .id = 0x200,  // can identifier M3508 & C620
     .len = 8,     // length of data
     .buf = {
       motorValues.m1 >> 8,
@@ -95,46 +39,51 @@ CAN_message_t setTurret(struct motor_data motorValues) {
   return drivetrain;
 }
 
-double input = 0;
-double output = 0;
-double setpoint = 1000.0;  // Define setpoint
-// PID myPID(&input, &output, &setpoint, 1, 5, 70, 1);
-// PID myPID(&input, &output, &setpoint, 0, 0, 0, 0);
+CAN_message_t setGimbal(struct motor_data motorValues) {
+  CAN_message_t gimbal {
+    .id = 0x1FF,  // can identifier
+    .len = 8,     // length of data
+    .buf = {
+      motorValues.m1 >> 8,
+      motorValues.m1,
+      motorValues.m2 >> 8,
+      motorValues.m2,
+      motorValues.m3 >> 8,
+      motorValues.m3,
+      motorValues.m4 >> 8,
+      motorValues.m4,
+    }  // data
+  };
+  return gimbal;
+}
 
 void setup() {
-  // myPID.SetMode(P_ON_M);
-  // myPID.SetOutputLimits(-1000, 1000);
 
   SerialInput.begin(100000, SERIAL_8E1);  //100Kbps
 
+  ChassisInput.begin(100000, SERIAL_8E1);  //100Kbps
+  
   Can1.setBaudRate(1000000);  //1M
-  Can1.begin(false);
+  Can1.begin(false);          // automatic retransmission
 
-  pinMode(PE11, OUTPUT);  //LED R
-  pinMode(PF14, OUTPUT);  //LED G
+  // pinMode(PE11, OUTPUT);  //LED R
+  // pinMode(PF14, OUTPUT);  //LED G
   Serial.begin(115200);
+  // digitalWrite(PE11, LOW);   // turn the LED on (HIGH is the voltage level)
+  // digitalWrite(PF14, LOW);  // turn the LED on (HIGH is the voltage level)
 }
-
-uint16_t prev_sp1 = 0;
-uint16_t prev_sp2 = 0;
-uint16_t prev_sp3 = 0;
-uint16_t prev_sp4 = 0;
-bool pp = true;
-// struct motor_data prevmotorValues{0,0,0,0};
-//const int offset = -1024;//ties the mapping so the data recieved means 0
-const double skillIssue = 0.01;
-const int mapLimit = 10;
 
 // less than or greater than
 inline bool ltgt(int lower, int val, int upper) {
   return (lower > val) || (val > upper);
 }
 
-uint16_t c0_prev = 1024;
-uint16_t c1_prev = 1024;
-uint16_t c2_prev = 1024;
-uint16_t c3_prev = 1024;
 DR16 drop_controller(DR16 in) {
+  // compensate for dropouts to stop robot from jittering
+  static uint16_t c0_prev = 1024;
+  static uint16_t c1_prev = 1024;
+  static uint16_t c2_prev = 1024;
+  static uint16_t c3_prev = 1024;
   if (ltgt(364, in.c0, 1684)
       || ltgt(364, in.c1, 1684)
       || ltgt(364, in.c2, 1684)
@@ -154,85 +103,94 @@ DR16 drop_controller(DR16 in) {
   return in;
 }
 
-bool body_pan = false;
+float to_radians(uint16_t num, uint16_t ub) {
+  float frac = ((float)num) / ub;
+  return frac * 2 * PI;
+}
+
+struct vector2 {
+  float x, y;
+};
+
+// Turns global orthogonal to local orthogonal
+struct vector2 rotate_by(struct vector2 in, float angle) {
+  float c = cos(angle);
+  float s = sin(angle);
+
+  return {
+    (in.x * c - in.y * s),
+    (in.x * s + in.y * c)
+  };
+}
+
+const int TorqueCeling = 7000;//7000mA is soft celing 8000mA is hard celing (motor melting)
+int agitator = 0;
+int tilt_s = 0;
+int flywheelF = 0;  //0x4000;
+int flywheelR = 0;  //0xC000;
+int last1 = 3;
+int last2 = 3;
+// int last3 = 3;
+// int last4 = 3;
 
 void loop() {
   std::vector<uint8_t> dr16_raw = readDR16();
   DR16 dr16 = parseDR16(dr16_raw.data());
   dr16 = drop_controller(dr16);
 
+  const int lb = -5000, ub = 5000;  // lower and upper bounds
 
-  const int lb = -5000, ub = 5000;
+  int wheel = map(dr16.wheel, 384, 1684, lb, ub);  // - 1000; Yaw
+  int rightY = map(dr16.c1, 384, 1684, lb, ub);  // Turret Tilt
+  
+  if (abs(wheel) <= 800) wheel = 0;
+  if (abs(rightY) <= 1) rightY = 0;
 
-  int rightX = map(dr16.c0, 384, 1684, lb, ub);  // - 1000; Yaw
-  int rightY = map(dr16.c1, 384, 1684, lb, ub);  // Not currently used for driving
-  int leftX = map(dr16.c2, 384, 1684, lb, ub);   // + testX;// - 1000;
-  int leftY = map(dr16.c3, 384, 1684, lb, ub);   // + testY;  // + 1000;
-
-
-  if (abs(leftY) == 1) leftY = 0;
-  if (abs(leftX) == 1) leftX = 0;
-  if (abs(rightY) == 1) rightY = 0;
-  if (abs(rightX) == 85) rightX = 0;
-
-  auto cm1 = motor1.read_speed();
-  auto cm2 = motor2.read_speed();
-  auto cm3 = motor3.read_speed();
-  auto cm4 = motor4.read_speed();
-
-  struct motor_data drivetrainValues;
-  struct motor_data turretValues;
-
-  setpoint = leftY;
-
-  int m1_s = leftY + leftX + (rightX && body_pan);
-  int m2_s = leftY - leftX + (rightX && body_pan);
-  int m3_s = -leftY - leftX + (rightX && body_pan);
-  int m4_s = -leftY + leftX + (rightX && body_pan);
-
-  int t_spin = rightX && !body_pan;
+  auto cm1 = tilt.read_speed();
 
 
-  if (dr16.s1 == 0) body_pan = true;
-  else body_pan = false;
+  // if (cm1 >= TorqueCeling) agitator = 0;
+    if (last1 != last2) {  //Agitator, on wheel
+    if (dr16.s1 == 3) agitator = 0;
+    else if (dr16.s1 == 2) agitator = -10000;
+    else if (dr16.s1 == 1) agitator = 10000;
+  }
+  last2 = last1;
+  last1 = dr16.s1;
 
-  int err1 = m1_s - cm1;
-  int err2 = m2_s - cm2;
-  int err3 = m3_s - cm3;
-  int err4 = m4_s - cm4;
+int WHOATHEREBESSY = 0.1;//slow down the tilt motor so not crash
 
-  int16_t sp1 = m1.update(err1);
-  int16_t sp2 = m2.update(err2);
-  int16_t sp3 = m3.update(err3);
-  int16_t sp4 = m4.update(err4);
+  int m1_s = 0xC000;  //L flywheel
+  int m2_s = 0x4000;  //R Flywheel
+  int m4_s = agitator;   //Agitator
+  int tilt_s = rightY * WHOATHEREBESSY;   //Tilt motor
 
+  tilt_s = mtilt.update(tilt_s - cm1);
 
-  drivetrainValues.m1 = sp1;
-  drivetrainValues.m2 = sp2;
-  drivetrainValues.m3 = sp3;
-  drivetrainValues.m4 = sp4;
+  Serial.print("Agitator Value: ");
+  Serial.println(agitator);
 
-
-  Serial.print("time:");
-  Serial.print(millis());
-  Serial.print(",setpoint:");
-  Serial.print(setpoint);
-  Serial.print(",output:");
-  Serial.print(sp1);
-  Serial.print(",c3:");
-  Serial.print(dr16.c3);
-  Serial.print(",speed:");
+  Serial.println("Flywheel speed in RPM: ");
   Serial.println(motor1.read_speed());
 
+  Serial.println("Tilt Motor Angle: ");
+  Serial.println(tilt.read_angle());//find 0 angle and TILT and PAN motor
+  
+  auto turret_fire = setTurret({ m1_s, m2_s, 0, m4_s });
+  auto turret_tilt = setGimbal({ tilt_s, tilt_s, tilt_s, tilt_s });
 
-  auto dt = setDrivetrain(drivetrainValues);
-  auto dt = setTurret({t_spin, t_spin, t_spin, t_spin});
+  if (!Can1.write(turret_fire) || !Can1.write(turret_tilt)) {
+    digitalWrite(PE11, HIGH);
+    Serial.println("COULD NOT WRITE TURRET");
+    Can1.end();
+    Can1.begin(false);
+  } else {
+    Serial.println("TURRET IS WORKING");
+  }
 
-  Can1.write(dt);
-
-
-  if (1) pp = !pp;
-  digitalWrite(PE11, pp);   // turn the LED on (HIGH is the voltage level)
-  digitalWrite(PF14, !pp);  // turn the LED on (HIGH is the voltage level)
+    
+  // if (1) pp = !pp;
+  // digitalWrite(PE11, pp);   // turn the LED on (HIGH is the voltage level)
+  // digitalWrite(PF14, !pp);  // turn the LED on (HIGH is the voltage level)
   delay(10);
 }
