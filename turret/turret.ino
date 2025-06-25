@@ -5,41 +5,11 @@
 #include "CanConf.h"
 #include "dr16.h"
 #include "devices.h"
-<<<<<<< Updated upstream
 
 #define PI 3.141592
 #define SPIN_CORRECTION -1  // cause I don't wanna actually calculate spin rate
 
 using namespace std;
-=======
-// #include <PID_v1_bc.h>
-
-using namespace std;
-motor motor1(M3508, 0);
-motor motor2(M3508, 1);
-motor motor3(M3508, 2);
-motor motor4(M3508, 3);
-
-// PID m1(39.36, 1226.72, 0);
-// PID m1(3.936, 122.672, 0);
-// PID m1(76, 6400, 0.02);
-// PID m1(9, 50, 0.005);
-PID m1(1, 0, 10);
-PID m2(1, 0, 10);
-PID m3(1, 0, 10);
-PID m4(1, 0, 10);
-
-
-CAN_message_t turret = {
-  .id = 0x1FE,  // can identifiera
-  .len = 8,     // length of data
-  .buf = { 0 }  // data
-};
-
-CAN_message_t motor_msg{
-  .id = 0x204  // can identifier
-};
->>>>>>> Stashed changes
 
 CAN_message_t motor_feedback;
 
