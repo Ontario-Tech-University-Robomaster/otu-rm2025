@@ -62,6 +62,11 @@ void setup() {
 
   SerialInput.begin(100000, SERIAL_8E1);  //100Kbps
 
+<<<<<<< Updated upstream
+=======
+  // ChassisToTurret.begin(100000, SERIAL_8E1);  //100Kbps
+
+>>>>>>> Stashed changes
   Can1.setBaudRate(1000000);  //1M
   Can1.begin(false); // automatic retransmission
 
@@ -159,8 +164,13 @@ void loop() {
 
   if (last1 != last2) {
     if (dr16.s2 == 3) beyblade = 0;
+<<<<<<< Updated upstream
     else if (dr16.s2 == 2) beyblade = 2000;
     else if (dr16.s2 == 1) beyblade = -2000;
+=======
+    else if (dr16.s2 == 2) beyblade = 10000;//max is 468, assume cause of weight is 400
+    else if (dr16.s2 == 1) beyblade = -10000;
+>>>>>>> Stashed changes
   }
   last2 = last1;
   last1 = dr16.s2;

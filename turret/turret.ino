@@ -154,6 +154,7 @@ DR16 drop_controller(DR16 in) {
   return in;
 }
 
+<<<<<<< Updated upstream
 bool body_pan = false;
 
 void loop() {
@@ -163,12 +164,88 @@ void loop() {
 
 
   const int lb = -5000, ub = 5000;
+=======
+int drop_usart(int in) {
+ if(in == 0x1A1A) return 1;
+ if(in == 0x2B2B) return 2; 
+ if(in != 0x3C3C) return 3;
+ return 3;
+}
+
+float to_radians(uint16_t num, uint16_t ub) {
+  float frac = ((float)num) / ub;
+  return frac * 2 * PI;
+}
+
+struct vector2 {
+  float x, y;
+};
+
+// Turns global orthogonal to local orthogonal
+struct vector2 rotate_by(struct vector2 in, float angle) {
+  float c = cos(angle);
+  float s = sin(angle);
+
+  return {
+    (in.x * c - in.y * s),
+    (in.x * s + in.y * c)
+  };
+}
+
+const int TorqueCeling = 7000;//7000mA is soft celing 8000mA is hard celing (motor melting)
+int agitator = 0;
+int tilt_s = 0;
+int flywheelF = 0;  //0x4000;
+int flywheelR = 0;  //0xC000;
+int last1 = 3;
+int last2 = 3;
+// int last3 = 3;
+// int last4 = 3;
+int manualOverrideDuration = 30000; // 30,000ms is 30s
+int overrideCount = 0; // count up to 30000
+
+void loop() {
+  // std::vector<uint8_t> dr16_raw = readDR16();
+  // DR16 dr16 = parseDR16(dr16_raw.data());
+  // dr16 = drop_controller(dr16);
+
+  int usart_raw = readUSART();
+  int usart = drop_usart(usart_raw);
+  
+  // float current_angle = to_radians(tilt.read_angle() - tilt_zero, GM6020_MAX_ANGLE);  // adjust for correction and turn to radian
+
+  const int lb = -5000, ub = 5000;  // lower and upper bounds
+
+  // int wheel = map(dr16.wheel, 384, 1684, lb, ub);  // - 1000; Yaw
+  // int rightY = map(dr16.c1, 384, 1684, lb, ub);  // Turret Tilt
+  
+  // if (abs(wheel) <= 800) wheel = 0;
+  // if (abs(rightY) <= 1) rightY = 0;
+
+  auto cm1 = tilt.read_speed();
+
+
+    if (last1 != last2) {  //Agitator, on wheel
+    if (usart == 3) agitator = 0;
+    else if (usart == 2) agitator = -5000;
+    else if (usart == 1) agitator = 5000;
+  }
+  last2 = last1;
+  last1 = usart;
+>>>>>>> Stashed changes
 
   int rightX = map(dr16.c0, 384, 1684, lb, ub);  // - 1000; Yaw
   int rightY = map(dr16.c1, 384, 1684, lb, ub);  // Not currently used for driving
   int leftX = map(dr16.c2, 384, 1684, lb, ub);   // + testX;// - 1000;
   int leftY = map(dr16.c3, 384, 1684, lb, ub);   // + testY;  // + 1000;
 
+<<<<<<< Updated upstream
+=======
+  int m1_s = 0xC000;  //L flywheel
+  int m2_s = 0x4000;  //R Flywheel
+  int m4_s = agitator;   //Agitator
+  // int tilt_s = rightY * WHOATHEREBESSY;   //Tilt motor
+>>>>>>> Stashed changes
 
   if (abs(leftY) == 1) leftY = 0;
   if (abs(leftX) == 1) leftX = 0;
@@ -224,9 +301,26 @@ void loop() {
   Serial.print(",speed:");
   Serial.println(motor1.read_speed());
 
+<<<<<<< Updated upstream
 
   auto dt = setDrivetrain(drivetrainValues);
   auto dt = setTurret({t_spin, t_spin, t_spin, t_spin});
+=======
+  // Serial.println("Tilt Motor Angle: ");
+  // Serial.println(tilt.read_angle());//find 0 angle for TILT and PAN motor
+  
+  auto turret_fire = setTurret({ m1_s, m2_s, m4_s, m4_s });
+  // auto turret_tilt = setGimbal({ tilt_s, tilt_s, tilt_s, tilt_s }); set mnual control
+
+  if (!Can1.write(turret_fire)) {
+    digitalWrite(PE11, HIGH);
+    Serial.println("COULD NOT WRITE TURRET");
+    Can1.end();
+    Can1.begin(false);
+  } else {
+    Serial.println("TURRET IS WORKING");
+  }
+>>>>>>> Stashed changes
 
   Can1.write(dt);
 
