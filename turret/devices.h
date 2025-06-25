@@ -21,6 +21,6 @@ STM32_CAN Can1(PD_0, PD_1);  //by PinName. Finds matching peripheral automatical
 HardwareSerial SerialInput(PB7, PB6);
 
 //Rx and Tx pins from chassis to turret
-HardwareSerial ChassisInput(PD6, PD5);//UART port
+HardwareSerial ChassisInput(PG9, PG14);//UART port
 
 #endif // DEVICES_H
